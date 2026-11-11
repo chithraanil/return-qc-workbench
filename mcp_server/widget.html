@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Return QC Workbench</title>
+<style>
+  :root { --bg:#18191c; --fg:#f1f3f4; --mut:#9aa0a6; --line:#34373c; --card:#222428;
+          --blue:#4c8bf5; --green:#34a853; --red:#ea4335; --amber:#fbbc04; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 "Google Sans",Roboto,Arial,sans-serif; background:var(--bg); color:var(--fg); }
+  header { display:flex; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid var(--line); background:var(--card); }
+  header h1 { font-size:16px; margin:0; flex:1; }
+  nav { display:flex; gap:8px; padding:10px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  nav button, .btn { border:1px solid var(--line); background:var(--card); color:var(--fg); padding:7px 14px; border-radius:20px; cursor:pointer; font:inherit; }
+  nav button.on, .btn.primary { background:var(--blue); color:#fff; border-color:var(--blue); font-weight:500; }
+  .btn.ok { background:var(--green); color:#fff; border-color:var(--green); }
+  .btn.bad { background:var(--red); color:#fff; border-color:var(--red); }
+  main { max-width:1100px; margin:0 auto; padding:16px 18px 60px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); }
+  th { font-size:12px; color:var(--mut); font-weight:500; }
+  tr.row:hover { background:var(--card); cursor:pointer; }
+  .badge { display:inline-block; padding:3px 10px; border-radius:12px; font-weight:600; font-size:12px; }
+  .APPROVE { background:rgba(52,168,83,.18); color:#81c995; }
+  .REJECT { background:rgba(234,67,53,.18); color:#f28b82; }
+  .REQUEST_MORE_EVIDENCE, .HUMAN_REVIEW { background:rgba(251,188,4,.18); color:#fdd663; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:12px 0; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  img.ev { width:100%; max-height:320px; object-fit:contain; border-radius:8px; border:1px solid var(--line); background:#111; }
+  .kpi { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .kpi div { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .kpi b { display:block; font-size:22px; margin-top:2px; }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding:24px; text-align:center; color:var(--mut); min-height:170px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer; }
+  .drop.has img { max-height:150px; border-radius:6px; }
+  .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin:10px 0; }
+  .bar > div { height:100%; background:var(--blue); transition:width .3s; }
+  .muted { color:var(--mut); } .ok { color:#81c995; } .bad { color:#f28b82; }
+  input[type=text], select, textarea { font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); width:100%; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Return QC Workbench</h1>
+  <button class="btn" id="btn-full">⛶ Fullscreen</button>
+</header>
+<nav id="tabs">
+  <button data-tab="ALL" class="on">All claims</button>
+  <button data-tab="FLAGGED">Needs review</button>
+  <button data-tab="HIGH_VALUE">High value</button>
+  <button data-tab="UPLOAD">Upload your own photos</button>
+  <button data-tab="STATS">Summary</button>
+</nav>
+<main id="main"></main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct = (x) => x == null ? '–' : Math.round(x * 100) + '%';
+const EMBEDDED = window.parent !== window;
+let rid = 0, tab = 'ALL', claims = [], focus = null, upload = {}, currentMode = 'inline';
+const pending = new Map();
+
+function rpc(method, params) {
+  if (!EMBEDDED) {
+    return fetch('/mcp', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({jsonrpc:'2.0', id: ++rid, method, params})})
+      .then(r => r.json()).then(m => { if (m.error) throw new Error(m.error.message); return m.result; });
+  }
+  const id = ++rid;
+  return new Promise((resolve, reject) => {
+    pending.set(id, {resolve, reject});
+    window.parent.postMessage({jsonrpc:'2.0', id, method, params}, '*');
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); reject(new Error('timeout')); } }, 60000);
+  });
+}
+window.addEventListener('message', (ev) => {
+  const m = ev.data; if (!m || m.jsonrpc !== '2.0') return;
+  if (m.id != null && pending.has(m.id) && (m.result !== undefined || m.error)) {
+    const p = pending.get(m.id); pending.delete(m.id);
+    m.error ? p.reject(new Error(m.error.message)) : p.resolve(m.result); return;
+  }
+  if (m.method === 'ui/notifications/tool-result') {
+    const sc = m.params?.structuredContent || m.params?.result?.structuredContent || {};
+    if (sc.focus) openClaim(sc.focus, sc.job_id);
+  }
+});
+$('#btn-full')?.addEventListener('click', async () => {
+  if (!EMBEDDED) {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    else document.exitFullscreen?.().catch(() => {});
+    return;
+  }
+  currentMode = currentMode === 'fullscreen' ? 'inline' : 'fullscreen';
+  try { await rpc('ui/request-display-mode', {mode: currentMode}); } catch (e) {}
+});
+document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
+  tab = b.dataset.tab;
+  focus = null;
+  render();
+}));
+async function callTool(name, args = {}) {
+  const res = await rpc('tools/call', {name, arguments: args});
+  if (res && res.isError) throw new Error((res.content?.[0]?.text) || 'tool error');
+  return res.structuredContent || {};
+}
+
+async function refresh() {
+  claims = (await callTool('list_claims')).claims || [];
+  render();
+}
+function render() {
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  if (focus) return openClaim(focus);
+  if (tab === 'UPLOAD') return renderUpload();
+  if (tab === 'STATS') return renderStats();
+  const rows = claims.filter(c => {
+    if (tab === 'ALL') return true;
+    if (tab === 'HIGH_VALUE') return c.route === 'HIGH_VALUE' || (c.value || 0) >= 10000;
+    if (tab === 'FLAGGED') {
+      if (c.route) return c.route === 'FLAGGED' || c.decision === 'REJECT' || c.decision === 'REQUEST_MORE_EVIDENCE';
+      return (c.value || 0) >= 5000;
+    }
+    return c.route === tab;
+  });
+  const pendingN = claims.filter(c => c.status === 'pending').length;
+  let h = `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+    <span class="muted">${rows.length} claim(s)</span>
+    <span class="badge APPROVE" style="font-weight:500">⏰ Scheduled Batch: Daily 9:00 AM IST</span>
+    <span style="flex:1"></span>
+    ${pendingN ? `<button class="btn primary" id="runall">▶ Trigger Batch Now (${pendingN} claims)</button>` : `<button class="btn primary" id="runall">▶ Re-run Batch Now</button>`}
+    <button class="btn" id="reload">Refresh</button></div>`;
+  if (!rows.length) h += `<p class="muted">No claims in this tab yet. Click <b>All claims</b> to inspect any case.</p>`;
+  else {
+    h += `<table><tr><th>Claim</th><th>Item</th><th>Value</th><th>AI Decision</th><th>Confidence</th></tr>`;
+    for (const c of rows) {
+      h += `<tr class="row" data-id="${esc(c.claim_id)}">
+        <td><b>${esc(c.claim_id)}</b></td>
+        <td>${esc(c.item)} <span class="muted">· ${esc(c.category)}</span></td>
+        <td>₹${(c.value || 0).toLocaleString('en-IN')}</td>
+        <td>${c.decision ? `<span class="badge ${c.decision}">${esc(c.decision.replace(/_/g, ' '))}</span>` : '<span class="muted">Click to analyze →</span>'}${c.analyst_decision ? ` <span class="badge ${c.analyst_decision.decision}">Final: ${esc(c.analyst_decision.decision)}</span>` : ''}</td>
+        <td>${c.confidence != null ? pct(c.confidence) : '–'}</td></tr>`;
+    }
+    h += `</table>`;
+  }
+  $('#main').innerHTML = h;
+  $('#reload')?.addEventListener('click', refresh);
+  $('#runall')?.addEventListener('click', async () => {
+    await callTool('batch_analyze');
+    $('#main').innerHTML = '<div class="card">Analyzing all 19 claims with Gemini…</div>';
+    for (let i = 0; i < 40; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      claims = (await callTool('list_claims')).claims || [];
+      if (!claims.some(c => c.status === 'pending')) break;
+    }
+    render();
+  });
+  document.querySelectorAll('tr.row').forEach(tr => tr.addEventListener('click', () => openClaim(tr.dataset.id)));
+}
+
+async function openClaim(id, jobId) {
+  focus = id;
+  if (jobId) return poll(jobId, id);
+  const g = await callTool('get_claim', {claim_id: id});
+  if (g.status === 'analyzed') return renderClaim(id, g.verdict);
+  const jid = (await callTool('analyze_claim', {claim_ref: id})).job_id;
+  return poll(jid, id);
+}
+async function poll(jobId, id) {
+  const t0 = Date.now();
+  for (;;) {
+    const s = await callTool('get_job_state', {job_id: jobId});
+    if (s.status === 'done') {
+      callTool('list_claims').then(r => { claims = r.claims || []; }).catch(() => {});
+      return renderClaim(id, s.verdict);
+    }
+    if (s.status === 'error') {
+      $('#main').innerHTML = `<button class="btn" id="back">← Back</button><div class="card bad">Error: ${esc(s.error)}</div>`;
+      $('#back').addEventListener('click', () => { focus = null; render(); });
+      return;
+    }
+    $('#main').innerHTML = `<div class="card"><b>Analyzing ${esc(id)} with Gemini AI…</b>
+      <div class="bar"><div style="width:70%"></div></div>
+      <span class="muted">Step: ${esc((s.stage || 'working').replace(/_/g, ' '))} · ${Math.round((Date.now() - t0) / 1000)}s</span></div>`;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+}
+
+function renderClaim(id, v) {
+  if (!v) return openClaim(id);
+  const attrs = (v.attribute_checks || []).map(a =>
+    `<tr><td>${esc(a.attribute)}</td><td>${esc(a.expected)}</td><td>${esc(a.observed)}</td><td class="${a.match ? 'ok' : 'bad'}">${a.match ? '✔ Match' : '✖ Mismatch'}</td></tr>`).join('');
+  const beforeImgs = (v.dispatch_media_items || []).filter(m => m.data_uri).map(m => `<img class="ev" src="${m.data_uri}">`).join('');
+  const afterImgs = (v.return_media_items || []).filter(m => m.data_uri).map(m => `<img class="ev" src="${m.data_uri}">`).join('');
+  $('#main').innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <button class="btn" id="back">← Back to list</button>
+      <span style="flex:1"></span>
+      <span class="muted">Models: ${esc((v.models_used || []).join(' + '))} · ${Number(v.latency_s || 0).toFixed(1)}s</span>
+    </div>
+    <div class="card">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <b style="font-size:16px">${esc(id)} · ${esc(v.item || '')}</b>
+        <span style="flex:1"></span>
+        <span class="badge ${v.decision}">${esc((v.decision || '').replace(/_/g, ' '))}</span>
+        <span><b>${pct(v.confidence)}</b> confidence</span>
+      </div>
+      <p style="margin:10px 0">${esc(v.summary)}</p>
+      <div class="muted">Responsible party: <b style="color:var(--fg)">${esc(v.liable_party || 'NONE')}</b> · Reason: <b style="color:var(--fg)">${esc((v.reason_codes || []).join(', ') || 'None')}</b></div>
+    </div>
+    ${v.evidence_image
+      ? `<div class="card"><b>Side-by-Side Comparison (Left: Dispatched · Right: Returned)</b><img class="ev" style="max-height:420px;margin-top:8px" src="${v.evidence_image}"></div>`
+      : ((beforeImgs || afterImgs) ? `<div class="card"><div class="grid"><div><b>Dispatched from Warehouse</b><div style="margin-top:6px">${beforeImgs || '<span class="muted">Video / Catalog only</span>'}</div></div><div><b>Returned by Customer</b><div style="margin-top:6px">${afterImgs}</div></div></div></div>` : '')}
+    ${attrs ? `<div class="card"><b>Item Checklist</b><table style="margin-top:6px"><tr><th>Check</th><th>Dispatched</th><th>Returned</th><th>Result</th></tr>${attrs}</table></div>` : ''}
+    <div class="card"><b>Suggested Reply to Customer</b><p class="muted" style="margin:6px 0 0">${esc(v.customer_message_draft)}</p></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn ok" data-d="APPROVE">Approve Refund</button>
+      <button class="btn bad" data-d="REJECT">Reject Claim</button>
+      <button class="btn" data-d="REQUEST_MORE_EVIDENCE">Ask Customer for Video</button>
+    </div>`;
+  $('#back').addEventListener('click', () => { focus = null; render(); });
+  document.querySelectorAll('[data-d]').forEach(b => b.addEventListener('click', async () => {
+    await callTool('apply_decision', {claim_ids: [id], decision: b.dataset.d});
+    focus = null; await refresh();
+  }));
+}
+
+function renderUpload() {
+  $('#main').innerHTML = `
+    <div class="card">
+      <b>Compare Any Two Real Photos Live</b>
+      <p class="muted">Upload a "Before" (warehouse) photo and an "After" (customer return) photo to test live with Gemini.</p>
+      <div class="grid">
+        <div class="drop" id="d_ref"><b>1. Warehouse Photo (Before)</b><span>Click to choose image</span></div>
+        <div class="drop" id="d_ret"><b>2. Customer Photo (After)</b><span>Click to choose image</span></div>
+      </div>
+      <div class="grid" style="margin-top:10px">
+        <select id="u_cat"><option>Electronics</option><option>Fashion</option><option>Home</option><option>Beauty</option><option>Accessories</option></select>
+        <input type="text" id="u_item" placeholder="Item name (e.g. Smartphone)">
+      </div>
+      <button class="btn primary" id="u_go" style="margin-top:10px" disabled>Analyze Pair with Gemini</button>
+      <input type="file" id="u_file" accept="image/*" hidden>
+    </div>`;
+  let target = null;
+  const setImg = (key, file) => {
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = () => {
+      upload[key] = r.result;
+      const box = $(key === 'ref' ? '#d_ref' : '#d_ret');
+      box.classList.add('has'); box.innerHTML = `<img src="${r.result}">`;
+      $('#u_go').disabled = !(upload.ref && upload.ret);
+    };
+    r.readAsDataURL(file);
+  };
+  for (const [sel, key] of [['#d_ref','ref'],['#d_ret','ret']]) {
+    $(sel).addEventListener('click', () => { target = key; $('#u_file').click(); });
+  }
+  $('#u_file').addEventListener('change', e => { setImg(target, e.target.files[0]); e.target.value = ''; });
+  $('#u_go').addEventListener('click', async () => {
+    $('#u_go').disabled = true; $('#u_go').textContent = 'Analyzing with Gemini…';
+    const r = await callTool('upload_and_analyze', {
+      reference_b64: upload.ref, return_b64: upload.ret,
+      category: $('#u_cat').value, item: $('#u_item').value || 'Uploaded item', claim_text: 'Customer return claim'});
+    upload = {}; openClaim(r.claim_id, r.job_id);
+  });
+}
+
+async function renderStats() {
+  const s = await callTool('get_stats');
+  $('#main').innerHTML = `
+    <div class="kpi">
+      <div><span class="muted">Total Queue Claims</span><b>${claims.length || 19}</b></div>
+      <div><span class="muted">Claims Analyzed</span><b>${s.analyzed ?? 0}</b></div>
+      <div><span class="muted">Auto-Handled by AI</span><b>${pct(s.auto_actioned_pct)}</b></div>
+      <div><span class="muted">Accuracy vs Ground Truth</span><b>${pct(s.accuracy_vs_expected)}</b></div>
+      <div><span class="muted">Average Speed</span><b>${s.avg_latency_s ? s.avg_latency_s + 's' : '–'}</b></div>
+      <div><span class="muted">Analyst Decisions</span><b>${s.analyst_decisions ?? 0}</b></div>
+    </div>`;
+}
+
+(async function boot() {
+  try {
+    if (EMBEDDED) await rpc('ui/initialize', {appInfo: {name: 'return-qc-workbench', version: '1.0'}, appCapabilities: {}, protocolVersion: '2025-06-18'});
+  } catch (e) {}
+  await refresh();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{
+  "claim_id": "C04",
+  "decision": "REQUEST_MORE_EVIDENCE",
+  "route": "RETAKE",
+  "confidence": 0.95,
+  "reason_codes": [
+    "INSUFFICIENT_EVIDENCE"
+  ],
+  "comparison_basis": "NONE",
+  "liable_party": "NONE",
+  "summary": "Customer media not usable: Photo is blurry; show the serial label clearly",
+  "evidence": [],
+  "attribute_checks": [],
+  "video_keyframes": [],
+  "deterministic_signals": {
+    "phash_reuse": false,
+    "phash_match_ref": null,
+    "exif_anomaly": false,
+    "exif_notes": []
+  },
+  "quality_gate": {
+    "usable": false,
+    "product_visible": false,
+    "identifier_readable": false,
+    "issues": [
+      "Photo is blurry; show the serial label clearly"
+    ]
+  },
+  "customer_message_draft": "Thanks for your request. To process it, please upload a clear photo: Photo is blurry; show the serial label clearly",
+  "seller_message_draft": "",
+  "evidence_image_path": null,
+  "models_used": [
+    "gemini-3.8-flash"
+  ],
+  "latency_s": 5.269050598144531e-05,
+  "est_cost_usd": 0.0
+}

@@ -1,0 +1,36 @@
+{
+  "claim_id": "C17",
+  "decision": "APPROVE",
+  "route": "AUTO_APPROVE",
+  "confidence": 0.93,
+  "reason_codes": [
+    "TRANSIT_DAMAGE_LIKELY"
+  ],
+  "comparison_basis": "PACKING_VIDEO",
+  "liable_party": "CARRIER",
+  "summary": "[DRY RUN] echo of expected outcome",
+  "evidence": [],
+  "attribute_checks": [],
+  "video_keyframes": [],
+  "deterministic_signals": {
+    "phash_reuse": false,
+    "phash_match_ref": null,
+    "exif_anomaly": false,
+    "exif_notes": []
+  },
+  "quality_gate": {
+    "usable": true,
+    "product_visible": true,
+    "identifier_readable": true,
+    "issues": []
+  },
+  "customer_message_draft": "[DRY RUN]",
+  "seller_message_draft": "[DRY RUN]",
+  "evidence_image_path": null,
+  "models_used": [
+    "gemini-3.8-flash",
+    "gemini-4-argon"
+  ],
+  "latency_s": 0.0,
+  "est_cost_usd": 0.0
+}

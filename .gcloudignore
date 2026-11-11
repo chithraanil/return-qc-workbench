@@ -1,0 +1,8 @@
+.venv/
+venv/
+out/
+__pycache__/
+*.pyc
+deploy/
+docs/
+*.md

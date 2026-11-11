@@ -1,0 +1,160 @@
+# Staged claim cases (balanced: 7 approve, 7 reject, 1 retake). Media paths are relative to data/media/.
+# Drop real photos/videos in with these exact names (see data/SHOT_LIST.md).
+# expected.* is the ground truth used by the harness scorecard.
+defaults:
+  currency: INR
+  delivered_at: "2026-10-20"
+claims:
+  - id: real_suitcase
+    order_item_id: OI-REAL-01
+    category: Accessories
+    item: real_suitcase
+    reason: damaged
+    text: "Hard-shell burgundy suitcase arrived with a cracked corner."
+    value: 14999
+    dispatch: [real_suitcase_dispatch.jpg]
+    return: [real_suitcase_return.jpg]
+    expected: {decision: APPROVE, codes: [PRE_EXISTING_DAMAGE_CLAIM], liable: SELLER}
+  - id: real_water_bottle
+    order_item_id: OI-REAL-02
+    category: Home
+    item: real_water_bottle
+    reason: damaged
+    text: "Returning motivational water bottle for full refund."
+    value: 1299
+    dispatch: [real_water_bottle_dispatch.jpg]
+    return: [real_water_bottle_return.jpg]
+    expected: {decision: REJECT, codes: [MISSING_PARTS_OR_ACCESSORIES, USED_OR_WORN], liable: CUSTOMER}
+  - id: real_ceramic_cups
+    order_item_id: OI-REAL-03
+    category: Home
+    item: real_ceramic_cups
+    reason: missing_part
+    text: "Returning 2-piece green ceramic cup set for refund."
+    value: 1899
+    dispatch: [real_ceramic_cups_dispatch.jpg]
+    return: [real_ceramic_cups_return.jpg]
+    expected: {decision: REJECT, codes: [MISSING_PARTS_OR_ACCESSORIES], liable: CUSTOMER}
+  - id: C01
+    order_item_id: OI-10001
+    category: Electronics
+    item: Smartphone
+    reason: wrong_item
+    text: "Phone stopped working, want refund."
+    value: 12999
+    dispatch: [C01_dispatch_front.jpg, C01_dispatch_imei.jpg]
+    return: [C01_return_front.jpg, C01_return_imei.jpg]
+    expected: {decision: REJECT, codes: [SERIAL_OR_TAG_MISMATCH, USED_OR_WORN], liable: CUSTOMER}
+  - id: C03
+    order_item_id: OI-10003
+    category: Electronics
+    item: Smartwatch
+    reason: damaged
+    text: "Screen cracked on arrival, box was crushed."
+    value: 8999
+    dispatch: [C03_dispatch.jpg]
+    return: [C03_return_screen.jpg]
+    expected: {decision: APPROVE, codes: [TRANSIT_DAMAGE_LIKELY], liable: CARRIER}
+  - id: C04
+    order_item_id: OI-10004
+    category: Electronics
+    item: Power bank
+    reason: damaged
+    text: "Not charging."
+    value: 1499
+    dispatch: [C04_dispatch_label.jpg]
+    return: [C04_return_blurry.jpg]
+    expected: {decision: REQUEST_MORE_EVIDENCE, codes: [INSUFFICIENT_EVIDENCE], route: RETAKE}
+  - id: C06
+    order_item_id: OI-10006
+    category: Fashion
+    item: Running sneakers
+    reason: damaged
+    text: "Shoes are defective, sole coming off."
+    value: 4599
+    dispatch: [C06_dispatch_soles.jpg]
+    return: [C06_return_soles.jpg]
+    expected: {decision: REJECT, codes: [USED_OR_WORN], liable: CUSTOMER}
+  - id: C07
+    order_item_id: OI-10007
+    category: Fashion
+    item: Party dress
+    reason: damaged
+    text: "Received with a stain."
+    value: 3299
+    dispatch: [C07_dispatch_tag.jpg]
+    return: [C07_return_stain.jpg]
+    expected: {decision: REJECT, codes: [USED_OR_WORN, SERIAL_OR_TAG_MISMATCH], liable: CUSTOMER}
+  - id: C08
+    order_item_id: OI-10008
+    category: Fashion
+    item: Printed T-shirt
+    reason: damaged
+    text: "Print is faulty."
+    value: 799
+    dispatch: [C08_dispatch_print.jpg]
+    return: [C08_return_print.jpg]
+    expected: {decision: APPROVE, codes: [PRE_EXISTING_DAMAGE_CLAIM], liable: SELLER}
+  - id: C09
+    order_item_id: OI-10009
+    category: Fashion
+    item: Bomber jacket
+    reason: wrong_item
+    text: "I ordered navy, got black."
+    value: 2999
+    dispatch: []
+    catalog: [C09_catalog_navy.jpg]
+    catalog_attributes: {color: navy, size: L, brand: Cymbal Wear}
+    return: [C09_return_black.jpg]
+    expected: {decision: APPROVE, codes: [ITEM_MISMATCH], liable: SELLER, route: FLAGGED}
+  - id: C10
+    order_item_id: OI-10010
+    category: Fashion
+    item: Leather handbag
+    reason: damaged
+    text: "Strap broke, want refund."
+    value: 18999
+    dispatch: [C10_dispatch_logo.jpg]
+    return: [C10_return_logo.jpg]
+    expected: {decision: REJECT, codes: [ITEM_MISMATCH], liable: CUSTOMER, route: HIGH_VALUE}
+  - id: C11
+    order_item_id: OI-10011
+    category: Home
+    item: Ceramic mug set
+    reason: damaged
+    text: "One mug arrived broken."
+    value: 1199
+    dispatch: [C11_dispatch_wrapped.jpg]
+    return: [C11_return_cracked.jpg]
+    expected: {decision: APPROVE, codes: [TRANSIT_DAMAGE_LIKELY], liable: CARRIER}
+  - id: C14
+    order_item_id: OI-10014
+    category: Home
+    item: Glass vase
+    reason: damaged
+    text: "Rim is chipped."
+    value: 1599
+    dispatch: [C14_dispatch_chip.jpg]
+    return: [C14_return_chip.jpg]
+    expected: {decision: APPROVE, codes: [PRE_EXISTING_DAMAGE_CLAIM], liable: SELLER}
+  - id: C15
+    order_item_id: OI-10015
+    category: Beauty
+    item: Eau de parfum 100ml
+    reason: wrong_item
+    text: "Not the fragrance I expected, unopened."
+    value: 5499
+    dispatch: [C15_dispatch_sealed.jpg]
+    return: [C15_return_open.jpg]
+    expected: {decision: REJECT, codes: [USED_OR_WORN], liable: CUSTOMER}
+  - id: C19
+    order_item_id: OI-10019
+    category: Fashion
+    item: Formal shoes
+    reason: wrong_item
+    text: "I ordered UK 9 but received UK 8."
+    value: 3999
+    ordered: {size: "UK 9", color: brown, brand: Cymbal Steps}
+    dispatch: [C19_dispatch_size_label.jpg]
+    return: [C19_return_size_label.jpg]
+    expected: {decision: APPROVE, codes: [ITEM_MISMATCH], liable: SELLER}

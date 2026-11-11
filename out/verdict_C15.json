@@ -1,0 +1,38 @@
+{
+  "claim_id": "C15",
+  "decision": "REJECT",
+  "route": "AUTO_REJECT",
+  "confidence": 0.93,
+  "reason_codes": [
+    "USED_OR_WORN"
+  ],
+  "comparison_basis": "DISPATCH_PHOTO",
+  "liable_party": "CUSTOMER",
+  "summary": "[DRY RUN] echo of expected outcome",
+  "evidence": [],
+  "attribute_checks": [],
+  "video_keyframes": [],
+  "deterministic_signals": {
+    "phash_reuse": false,
+    "phash_match_ref": null,
+    "exif_anomaly": false,
+    "exif_notes": [
+      "No EXIF metadata (common for screenshots/messaging apps)."
+    ]
+  },
+  "quality_gate": {
+    "usable": true,
+    "product_visible": true,
+    "identifier_readable": true,
+    "issues": []
+  },
+  "customer_message_draft": "[DRY RUN]",
+  "seller_message_draft": "[DRY RUN]",
+  "evidence_image_path": "/home/corpagent-eng-chithraanil/.gemini/jetski/brain/080a57aa-fa56-4892-8e4c-3f47b62b9f18/qc_demo/out/evidence_C15.jpg",
+  "models_used": [
+    "gemini-3.8-flash",
+    "gemini-4-argon"
+  ],
+  "latency_s": 0.17,
+  "est_cost_usd": 0.0
+}
